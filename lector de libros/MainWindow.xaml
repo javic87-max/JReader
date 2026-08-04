@@ -63,13 +63,15 @@
                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                           AutomationProperties.Name="Separador de la tabla de contenidos"/>
 
-            <RichTextBox x:Name="ReaderRichTextBox" Grid.Column="2"
-                         FontSize="{Binding BaseFontSize}"
-                         IsReadOnly="True"
-                         IsReadOnlyCaretVisible="True"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Disabled"
-                         AutomationProperties.Name="Contenido del libro"/>
+            <TextBox x:Name="ReaderTextBox" Grid.Column="2"
+                     Text="{Binding CurrentBook.Text, Mode=OneWay}"
+                     FontSize="{Binding BaseFontSize}"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled"
+                     AutomationProperties.Name="Contenido del libro"/>
         </Grid>
     </DockPanel>
 </Window>

@@ -1,13 +1,10 @@
 using System.IO;
 using System.Text.Json;
-using System.Windows.Documents;
 
 namespace lector_de_libros.Services;
 
 /// <summary>
-/// Persists, per book file path, how many plain-text characters into the FlowDocument the reader's
-/// caret was. Restoring relies on the EPUB/PDF -> FlowDocument conversion being deterministic for the
-/// same source file, so counting characters from the start is stable across sessions.
+/// Persists, per book file path, the character offset (TextBox.CaretIndex) the reader's caret was at.
 /// </summary>
 public sealed class ReadingPositionStore
 {
@@ -30,37 +27,6 @@ public sealed class ReadingPositionStore
     {
         _positionsByFilePath[filePath] = characterOffset;
         Save();
-    }
-
-    public static int GetCharacterOffset(FlowDocument document, TextPointer position) =>
-        new TextRange(document.ContentStart, position).Text.Length;
-
-    public static TextPointer GetPositionAtCharacterOffset(FlowDocument document, int characterOffset)
-    {
-        TextPointer pointer = document.ContentStart;
-        int remaining = characterOffset;
-
-        while (pointer is not null)
-        {
-            if (pointer.GetPointerContext(LogicalDirection.Forward) == TextPointerContext.Text)
-            {
-                int runLength = pointer.GetTextRunLength(LogicalDirection.Forward);
-                if (remaining <= runLength)
-                {
-                    return pointer.GetPositionAtOffset(remaining) ?? document.ContentEnd;
-                }
-                remaining -= runLength;
-            }
-
-            TextPointer? next = pointer.GetNextContextPosition(LogicalDirection.Forward);
-            if (next is null)
-            {
-                break;
-            }
-            pointer = next;
-        }
-
-        return document.ContentEnd;
     }
 
     private static Dictionary<string, int> Load()

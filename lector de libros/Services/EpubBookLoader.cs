@@ -1,6 +1,5 @@
 using System.IO;
-using System.Windows;
-using System.Windows.Documents;
+using System.Text;
 using lector_de_libros.Models;
 using VersOne.Epub;
 using VersOne.Epub.Options;
@@ -9,8 +8,6 @@ namespace lector_de_libros.Services;
 
 public sealed class EpubBookLoader : IBookLoader
 {
-    private const double DefaultFontSize = 16.0;
-
     public bool CanLoad(string filePath) =>
         string.Equals(Path.GetExtension(filePath), ".epub", StringComparison.OrdinalIgnoreCase);
 
@@ -18,30 +15,20 @@ public sealed class EpubBookLoader : IBookLoader
     {
         EpubBook book = ReadBookLeniently(filePath);
 
-        FlowDocument document = new();
-        NameScope.SetNameScope(document, new NameScope());
-
-        Dictionary<string, string> chapterAnchorsByFilePath = new();
-        int chapterIndex = 0;
+        StringBuilder text = new();
+        Dictionary<string, int> chapterOffsetsByFilePath = new();
         foreach (EpubLocalTextContentFile chapterFile in book.ReadingOrder)
         {
-            Block? firstBlock = HtmlToFlowDocumentConverter.AppendChapter(document, chapterFile.Content, DefaultFontSize);
-            if (firstBlock is not null)
-            {
-                string anchorName = $"chapter_{chapterIndex}";
-                firstBlock.Name = anchorName;
-                document.RegisterName(anchorName, firstBlock);
-                chapterAnchorsByFilePath[chapterFile.FilePath] = anchorName;
-            }
-            chapterIndex++;
+            chapterOffsetsByFilePath[chapterFile.FilePath] = text.Length;
+            HtmlToPlainTextConverter.AppendChapter(text, chapterFile.Content);
         }
 
         List<TocEntry> toc = book.Navigation is null
             ? []
-            : BuildTocEntries(book.Navigation, chapterAnchorsByFilePath);
+            : BuildTocEntries(book.Navigation, chapterOffsetsByFilePath);
 
         string? author = book.AuthorList.Count > 0 ? book.Author : null;
-        return new LoadedBook(filePath, book.Title, author, document, toc);
+        return new LoadedBook(filePath, book.Title, author, text.ToString(), toc);
     }
 
     /// <summary>
@@ -63,26 +50,27 @@ public sealed class EpubBookLoader : IBookLoader
         }
     }
 
-    private static List<TocEntry> BuildTocEntries(List<EpubNavigationItem> items, Dictionary<string, string> chapterAnchorsByFilePath)
+    private static List<TocEntry> BuildTocEntries(List<EpubNavigationItem> items, Dictionary<string, int> chapterOffsetsByFilePath)
     {
         List<TocEntry> result = [];
         foreach (EpubNavigationItem item in items)
         {
-            List<TocEntry> children = BuildTocEntries(item.NestedItems, chapterAnchorsByFilePath);
+            List<TocEntry> children = BuildTocEntries(item.NestedItems, chapterOffsetsByFilePath);
 
-            string? anchor = null;
-            if (item.HtmlContentFile is not null)
+            int? offset = null;
+            if (item.HtmlContentFile is not null &&
+                chapterOffsetsByFilePath.TryGetValue(item.HtmlContentFile.FilePath, out int found))
             {
-                chapterAnchorsByFilePath.TryGetValue(item.HtmlContentFile.FilePath, out anchor);
+                offset = found;
             }
 
-            if (anchor is null && children.Count == 0)
+            if (offset is null && children.Count == 0)
             {
                 // Navigation entry doesn't resolve to any known chapter and has no children to fall back to.
                 continue;
             }
 
-            result.Add(new TocEntry(item.Title, anchor ?? children[0].AnchorName, children));
+            result.Add(new TocEntry(item.Title, offset ?? children[0].CharacterOffset, children));
         }
         return result;
     }

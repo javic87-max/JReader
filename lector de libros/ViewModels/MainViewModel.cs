@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows.Documents;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using lector_de_libros.Models;
@@ -41,7 +40,6 @@ public partial class MainViewModel : ObservableObject
             LoadedBook book = _bookLoaderFactory.Load(filePath);
             CurrentBook = book;
             WindowTitle = $"{DefaultWindowTitle} — {book.Title}";
-            RescaleHeadings(book.Content, BaseFontSize);
             errorMessage = null;
             return true;
         }
@@ -60,24 +58,4 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleToc() => IsTocVisible = !IsTocVisible;
-
-    partial void OnBaseFontSizeChanged(double value)
-    {
-        if (CurrentBook is not null)
-        {
-            RescaleHeadings(CurrentBook.Content, value);
-        }
-    }
-
-    private static void RescaleHeadings(FlowDocument document, double baseFontSize)
-    {
-        foreach (Block block in document.Blocks)
-        {
-            if (block is Paragraph { Tag: int level } paragraph &&
-                HeadingStyle.LevelFontMultiplier.TryGetValue(level, out double multiplier))
-            {
-                paragraph.FontSize = baseFontSize * multiplier;
-            }
-        }
-    }
 }
