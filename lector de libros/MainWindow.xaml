@@ -1,12 +1,75 @@
-﻿<Window x:Class="lector_de_libros.MainWindow"
+<Window x:Class="lector_de_libros.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:lector_de_libros"
+        xmlns:models="clr-namespace:lector_de_libros.Models"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="{Binding WindowTitle}" Height="650" Width="1000"
+        Closing="Window_Closing">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </Window.Resources>
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Open" Executed="OpenCommandBinding_Executed"/>
+    </Window.CommandBindings>
+    <Window.InputBindings>
+        <KeyBinding Key="O" Modifiers="Control" Command="ApplicationCommands.Open"/>
+        <KeyBinding Key="OemPlus" Modifiers="Control" Command="{Binding IncreaseFontSizeCommand}"/>
+        <KeyBinding Key="Add" Modifiers="Control" Command="{Binding IncreaseFontSizeCommand}"/>
+        <KeyBinding Key="OemMinus" Modifiers="Control" Command="{Binding DecreaseFontSizeCommand}"/>
+        <KeyBinding Key="Subtract" Modifiers="Control" Command="{Binding DecreaseFontSizeCommand}"/>
+        <KeyBinding Key="B" Modifiers="Control" Command="{Binding ToggleTocCommand}"/>
+    </Window.InputBindings>
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_Archivo">
+                <MenuItem Header="_Abrir…" Command="ApplicationCommands.Open" InputGestureText="Ctrl+O"/>
+            </MenuItem>
+            <MenuItem Header="_Ver">
+                <MenuItem Header="_Aumentar tamaño de letra" Command="{Binding IncreaseFontSizeCommand}" InputGestureText="Ctrl++"/>
+                <MenuItem Header="_Reducir tamaño de letra" Command="{Binding DecreaseFontSizeCommand}" InputGestureText="Ctrl+-"/>
+                <Separator/>
+                <MenuItem Header="_Tabla de contenidos" IsCheckable="True" IsChecked="{Binding IsTocVisible}" InputGestureText="Ctrl+B"/>
+            </MenuItem>
+        </Menu>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-    </Grid>
+            <Border Grid.Column="0" Width="260"
+                    Visibility="{Binding IsTocVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+                    BorderThickness="0,0,1,0"
+                    BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}">
+                <TreeView x:Name="TocTreeView"
+                          ItemsSource="{Binding CurrentBook.Toc}"
+                          AutomationProperties.Name="Tabla de contenidos"
+                          KeyDown="TocTreeView_KeyDown"
+                          MouseDoubleClick="TocTreeView_MouseDoubleClick">
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate DataType="{x:Type models:TocEntry}" ItemsSource="{Binding Children}">
+                            <TextBlock Text="{Binding Title}"/>
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="4"
+                          Visibility="{Binding IsTocVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          AutomationProperties.Name="Separador de la tabla de contenidos"/>
+
+            <RichTextBox x:Name="ReaderRichTextBox" Grid.Column="2"
+                         FontSize="{Binding BaseFontSize}"
+                         IsReadOnly="True"
+                         IsReadOnlyCaretVisible="True"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Disabled"
+                         AutomationProperties.Name="Contenido del libro"/>
+        </Grid>
+    </DockPanel>
 </Window>
