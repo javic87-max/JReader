@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using lector_de_libros.Models;
@@ -44,6 +46,24 @@ namespace lector_de_libros
 
             int startOffset = _viewModel.ReadingPositionStore.GetPosition(filePath) ?? 0;
             NavigateToOffset(startOffset);
+        }
+
+        private void RecentFileMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem { Tag: RecentFile recent })
+            {
+                return;
+            }
+
+            if (!File.Exists(recent.FilePath))
+            {
+                MessageBox.Show(this, $"Ya no se encuentra «{recent.Title}» en:\n{recent.FilePath}",
+                    "Archivo no encontrado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                _viewModel.RemoveRecentFile(recent.FilePath);
+                return;
+            }
+
+            LoadBook(recent.FilePath);
         }
 
         private void TocTreeView_KeyDown(object sender, KeyEventArgs e)

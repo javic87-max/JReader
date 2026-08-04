@@ -26,6 +26,20 @@
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_Archivo">
                 <MenuItem Header="_Abrir…" Command="ApplicationCommands.Open" InputGestureText="Ctrl+O"/>
+                <MenuItem Header="Libros _recientes" ItemsSource="{Binding RecentFiles}" IsEnabled="{Binding HasRecentFiles}">
+                    <MenuItem.ItemContainerStyle>
+                        <!-- Explicit AutomationProperties.Name for the same reason as the TOC TreeView:
+                             don't rely on WPF's automatic accessible-name inference for templated items. -->
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Header" Value="{Binding Title}"/>
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Title}"/>
+                            <Setter Property="Tag" Value="{Binding}"/>
+                            <EventSetter Event="Click" Handler="RecentFileMenuItem_Click"/>
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="_Vaciar lista de recientes" Command="{Binding ClearRecentFilesCommand}" IsEnabled="{Binding HasRecentFiles}"/>
             </MenuItem>
             <MenuItem Header="_Ver">
                 <MenuItem Header="_Aumentar tamaño de letra" Command="{Binding IncreaseFontSizeCommand}" InputGestureText="Ctrl++"/>
