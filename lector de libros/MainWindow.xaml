@@ -50,6 +50,13 @@
                           AutomationProperties.Name="Tabla de contenidos"
                           KeyDown="TocTreeView_KeyDown"
                           MouseDoubleClick="TocTreeView_MouseDoubleClick">
+                    <TreeView.ItemContainerStyle>
+                        <!-- Without this, WPF sometimes falls back to describing the underlying
+                             TocEntry data object to screen readers instead of just its title. -->
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Title}"/>
+                        </Style>
+                    </TreeView.ItemContainerStyle>
                     <TreeView.ItemTemplate>
                         <HierarchicalDataTemplate DataType="{x:Type models:TocEntry}" ItemsSource="{Binding Children}">
                             <TextBlock Text="{Binding Title}"/>
