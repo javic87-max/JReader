@@ -92,7 +92,7 @@
                      AcceptsReturn="True"
                      VerticalScrollBarVisibility="Auto"
                      HorizontalScrollBarVisibility="Disabled"
-                     AutomationProperties.Name="Contenido del libro"/>
+                     AutomationProperties.Name="Contenido del libro" Margin="0,1,0,-1"/>
         </Grid>
     </DockPanel>
 </Window>

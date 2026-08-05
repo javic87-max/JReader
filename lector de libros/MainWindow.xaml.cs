@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -41,6 +40,7 @@ namespace lector_de_libros
             if (!_viewModel.TryLoadBook(filePath, out string? errorMessage))
             {
                 MessageBox.Show(this, errorMessage, "No se pudo abrir el libro", MessageBoxButton.OK, MessageBoxImage.Error);
+                _viewModel.RemoveRecentFile(filePath);
                 return;
             }
 
@@ -50,20 +50,10 @@ namespace lector_de_libros
 
         private void RecentFileMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is not MenuItem { Tag: RecentFile recent })
+            if (sender is MenuItem { Tag: RecentFile recent })
             {
-                return;
+                LoadBook(recent.FilePath);
             }
-
-            if (!File.Exists(recent.FilePath))
-            {
-                MessageBox.Show(this, $"Ya no se encuentra «{recent.Title}» en:\n{recent.FilePath}",
-                    "Archivo no encontrado", MessageBoxButton.OK, MessageBoxImage.Warning);
-                _viewModel.RemoveRecentFile(recent.FilePath);
-                return;
-            }
-
-            LoadBook(recent.FilePath);
         }
 
         private void TocTreeView_KeyDown(object sender, KeyEventArgs e)

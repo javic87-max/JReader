@@ -20,6 +20,8 @@ public partial class MainViewModel : ObservableObject
 
     public RecentFilesStore RecentFilesStore { get; } = new();
 
+    private readonly BookCacheStore _bookCacheStore = new();
+
     public ObservableCollection<RecentFile> RecentFiles { get; } = new();
 
     [ObservableProperty]
@@ -53,13 +55,25 @@ public partial class MainViewModel : ObservableObject
             LoadedBook book = _bookLoaderFactory.Load(filePath);
             CurrentBook = book;
             WindowTitle = $"{DefaultWindowTitle} — {book.Title}";
-            RecentFilesStore.Register(filePath, book.Title);
-            RefreshRecentFiles();
+            _bookCacheStore.Save(book);
+            RegisterRecent(filePath, book.Title);
             errorMessage = null;
             return true;
         }
         catch (Exception ex)
         {
+            // The real file couldn't be read (drive unplugged, file moved, etc.) - fall back to
+            // whatever was cached from the last time this book was opened successfully, if any.
+            LoadedBook? cached = _bookCacheStore.TryLoad(filePath);
+            if (cached is not null)
+            {
+                CurrentBook = cached;
+                WindowTitle = $"{DefaultWindowTitle} — {cached.Title} (copia sin conexión)";
+                RegisterRecent(filePath, cached.Title);
+                errorMessage = null;
+                return true;
+            }
+
             errorMessage = $"No se pudo abrir «{Path.GetFileName(filePath)}»: {ex.Message}";
             return false;
         }
@@ -68,6 +82,7 @@ public partial class MainViewModel : ObservableObject
     public void RemoveRecentFile(string filePath)
     {
         RecentFilesStore.Remove(filePath);
+        _bookCacheStore.Prune(RecentFilesStore.RecentFiles.Select(r => r.FilePath));
         RefreshRecentFiles();
     }
 
@@ -75,6 +90,14 @@ public partial class MainViewModel : ObservableObject
     private void ClearRecentFiles()
     {
         RecentFilesStore.Clear();
+        _bookCacheStore.Prune(RecentFilesStore.RecentFiles.Select(r => r.FilePath));
+        RefreshRecentFiles();
+    }
+
+    private void RegisterRecent(string filePath, string title)
+    {
+        RecentFilesStore.Register(filePath, title);
+        _bookCacheStore.Prune(RecentFilesStore.RecentFiles.Select(r => r.FilePath));
         RefreshRecentFiles();
     }
 
