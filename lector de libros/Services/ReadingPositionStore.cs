@@ -8,10 +8,7 @@ namespace lector_de_libros.Services;
 /// </summary>
 public sealed class ReadingPositionStore
 {
-    private static readonly string SettingsFilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "LectorDeLibros",
-        "reading-positions.json");
+    private static readonly string SettingsFilePath = AppPaths.GetDataFilePath("reading-positions.json");
 
     private readonly Dictionary<string, int> _positionsByFilePath;
 

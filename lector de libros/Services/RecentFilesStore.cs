@@ -11,10 +11,7 @@ public sealed class RecentFilesStore
 {
     private const int MaxEntries = 10;
 
-    private static readonly string SettingsFilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "LectorDeLibros",
-        "recent-files.json");
+    private static readonly string SettingsFilePath = AppPaths.GetDataFilePath("recent-files.json");
 
     private readonly List<RecentFile> _recentFiles;
 

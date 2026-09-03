@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -18,6 +20,26 @@ namespace lector_de_libros
         {
             InitializeComponent();
             DataContext = _viewModel;
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.ReopenLastBookOnStartup && _viewModel.GetLastOpenedFilePath() is { } lastFilePath)
+            {
+                LoadBook(lastFilePath);
+            }
+        }
+
+        private void ShowReadingProgress_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.CurrentBook is not { } book || book.Text.Length == 0)
+            {
+                MessageBox.Show(this, "No hay ningún libro abierto.", "Progreso de lectura", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            double percent = (double)ReaderTextBox.CaretIndex / book.Text.Length * 100;
+            MessageBox.Show(this, $"Has leído el {percent:F0}% del libro.", "Progreso de lectura", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void OpenCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
@@ -48,11 +70,48 @@ namespace lector_de_libros
             NavigateToOffset(startOffset);
         }
 
+        private void CloseCommandBinding_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = _viewModel.CurrentBook is not null;
+        }
+
+        private void CloseCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            SaveCurrentPosition();
+            _viewModel.CloseBook();
+            CommandManager.InvalidateRequerySuggested();
+            AnnounceToScreenReader("Libro cerrado");
+        }
+
+        /// <summary>
+        /// One-off screen reader announcement via the UIA Notification event, for state changes
+        /// (like closing the book) that aren't reflected by a focus move NVDA would otherwise report.
+        /// </summary>
+        private void AnnounceToScreenReader(string message)
+        {
+            AutomationPeer peer = UIElementAutomationPeer.FromElement(ReaderTextBox)
+                ?? UIElementAutomationPeer.CreatePeerForElement(ReaderTextBox);
+            peer?.RaiseNotificationEvent(
+                AutomationNotificationKind.ActionCompleted,
+                AutomationNotificationProcessing.ImportantMostRecent,
+                message,
+                nameof(AnnounceToScreenReader));
+        }
+
         private void RecentFileMenuItem_Click(object sender, RoutedEventArgs e)
         {
             if (sender is MenuItem { Tag: RecentFile recent })
             {
                 LoadBook(recent.FilePath);
+            }
+        }
+
+        private void Library_Click(object sender, RoutedEventArgs e)
+        {
+            LibraryWindow libraryWindow = new(_viewModel) { Owner = this };
+            if (libraryWindow.ShowDialog() == true && libraryWindow.BookToOpen is { } filePath)
+            {
+                LoadBook(filePath);
             }
         }
 

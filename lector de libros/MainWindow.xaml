@@ -7,15 +7,18 @@
         xmlns:models="clr-namespace:lector_de_libros.Models"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" Height="650" Width="1000"
+        Loaded="Window_Loaded"
         Closing="Window_Closing">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </Window.Resources>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Open" Executed="OpenCommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Close" Executed="CloseCommandBinding_Executed" CanExecute="CloseCommandBinding_CanExecute"/>
     </Window.CommandBindings>
     <Window.InputBindings>
         <KeyBinding Key="O" Modifiers="Control" Command="ApplicationCommands.Open"/>
+        <KeyBinding Key="W" Modifiers="Control" Command="ApplicationCommands.Close"/>
         <KeyBinding Key="OemPlus" Modifiers="Control" Command="{Binding IncreaseFontSizeCommand}"/>
         <KeyBinding Key="Add" Modifiers="Control" Command="{Binding IncreaseFontSizeCommand}"/>
         <KeyBinding Key="OemMinus" Modifiers="Control" Command="{Binding DecreaseFontSizeCommand}"/>
@@ -40,12 +43,20 @@
                 </MenuItem>
                 <Separator/>
                 <MenuItem Header="_Vaciar lista de recientes" Command="{Binding ClearRecentFilesCommand}" IsEnabled="{Binding HasRecentFiles}"/>
+                <Separator/>
+                <MenuItem Header="_Biblioteca…" Click="Library_Click"/>
+                <Separator/>
+                <MenuItem Header="_Cerrar libro" Command="ApplicationCommands.Close" InputGestureText="Ctrl+W"/>
+                <Separator/>
+                <MenuItem Header="Abrir último libro al _iniciar" IsCheckable="True" IsChecked="{Binding ReopenLastBookOnStartup}"/>
             </MenuItem>
             <MenuItem Header="_Ver">
                 <MenuItem Header="_Aumentar tamaño de letra" Command="{Binding IncreaseFontSizeCommand}" InputGestureText="Ctrl++"/>
                 <MenuItem Header="_Reducir tamaño de letra" Command="{Binding DecreaseFontSizeCommand}" InputGestureText="Ctrl+-"/>
                 <Separator/>
                 <MenuItem Header="_Tabla de contenidos" IsCheckable="True" IsChecked="{Binding IsTocVisible}" InputGestureText="Ctrl+B"/>
+                <Separator/>
+                <MenuItem Header="_Progreso de lectura…" Click="ShowReadingProgress_Click"/>
             </MenuItem>
         </Menu>
         <Grid>
@@ -88,6 +99,7 @@
                      Text="{Binding CurrentBook.Text, Mode=OneWay}"
                      FontSize="{Binding BaseFontSize}"
                      IsReadOnly="True"
+                     IsReadOnlyCaretVisible="True"
                      TextWrapping="Wrap"
                      AcceptsReturn="True"
                      VerticalScrollBarVisibility="Auto"

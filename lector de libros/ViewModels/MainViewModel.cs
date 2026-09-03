@@ -12,7 +12,7 @@ public partial class MainViewModel : ObservableObject
     private const double MinFontSize = 10;
     private const double MaxFontSize = 40;
     private const double FontSizeStep = 2;
-    private const string DefaultWindowTitle = "Lector de libros";
+    private const string DefaultWindowTitle = "J Reader";
 
     private readonly BookLoaderFactory _bookLoaderFactory = new();
 
@@ -20,9 +20,15 @@ public partial class MainViewModel : ObservableObject
 
     public RecentFilesStore RecentFilesStore { get; } = new();
 
+    public LibraryStore LibraryStore { get; } = new();
+
+    public AppSettingsStore AppSettingsStore { get; } = new();
+
     private readonly BookCacheStore _bookCacheStore = new();
 
     public ObservableCollection<RecentFile> RecentFiles { get; } = new();
+
+    public ObservableCollection<LibraryBook> LibraryBooks { get; } = new();
 
     [ObservableProperty]
     private LoadedBook? _currentBook;
@@ -31,7 +37,7 @@ public partial class MainViewModel : ObservableObject
     private double _baseFontSize = 16;
 
     [ObservableProperty]
-    private bool _isTocVisible = true;
+    private bool _isTocVisible;
 
     [ObservableProperty]
     private string _windowTitle = DefaultWindowTitle;
@@ -39,10 +45,28 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasRecentFiles;
 
+    [ObservableProperty]
+    private bool _hasLibraryBooks;
+
+    [ObservableProperty]
+    private bool _reopenLastBookOnStartup;
+
     public MainViewModel()
     {
+        _reopenLastBookOnStartup = AppSettingsStore.ReopenLastBookOnStartup;
+        _isTocVisible = AppSettingsStore.IsTocVisible;
         RefreshRecentFiles();
+        RefreshLibrary();
     }
+
+    public string? GetLastOpenedFilePath() =>
+        RecentFilesStore.RecentFiles.Count > 0 ? RecentFilesStore.RecentFiles[0].FilePath : null;
+
+    partial void OnReopenLastBookOnStartupChanged(bool value) =>
+        AppSettingsStore.ReopenLastBookOnStartup = value;
+
+    partial void OnIsTocVisibleChanged(bool value) =>
+        AppSettingsStore.IsTocVisible = value;
 
     /// <summary>
     /// Opening a file the user picked from disk is a trust boundary: any malformed EPUB/PDF can throw,
@@ -111,6 +135,46 @@ public partial class MainViewModel : ObservableObject
         HasRecentFiles = RecentFiles.Count > 0;
     }
 
+    /// <summary>
+    /// Best-effort title for a book that isn't being opened, just added to the library. Falls back
+    /// to the file name when parsing fails, since a broken/missing file shouldn't block shelving it.
+    /// </summary>
+    public string TryGetBookTitle(string filePath)
+    {
+        try
+        {
+            return _bookLoaderFactory.Load(filePath).Title;
+        }
+        catch (Exception)
+        {
+            return Path.GetFileNameWithoutExtension(filePath);
+        }
+    }
+
+    public bool IsInLibrary(string filePath) => LibraryStore.Contains(filePath);
+
+    public void AddToLibrary(string filePath)
+    {
+        LibraryStore.Add(filePath, TryGetBookTitle(filePath));
+        RefreshLibrary();
+    }
+
+    public void RemoveFromLibrary(string filePath)
+    {
+        LibraryStore.Remove(filePath);
+        RefreshLibrary();
+    }
+
+    private void RefreshLibrary()
+    {
+        LibraryBooks.Clear();
+        foreach (LibraryBook book in LibraryStore.Books)
+        {
+            LibraryBooks.Add(book);
+        }
+        HasLibraryBooks = LibraryBooks.Count > 0;
+    }
+
     [RelayCommand]
     private void IncreaseFontSize() => BaseFontSize = Math.Min(MaxFontSize, BaseFontSize + FontSizeStep);
 
@@ -119,4 +183,10 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleToc() => IsTocVisible = !IsTocVisible;
+
+    public void CloseBook()
+    {
+        CurrentBook = null;
+        WindowTitle = DefaultWindowTitle;
+    }
 }

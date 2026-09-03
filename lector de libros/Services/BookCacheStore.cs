@@ -13,10 +13,7 @@ namespace lector_de_libros.Services;
 /// </summary>
 public sealed class BookCacheStore
 {
-    private static readonly string CacheDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "LectorDeLibros",
-        "cache");
+    private static readonly string CacheDirectory = Path.Combine(AppPaths.DataDirectory, "cache");
 
     public void Save(LoadedBook book)
     {
