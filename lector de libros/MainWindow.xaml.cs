@@ -4,6 +4,7 @@ using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Markup;
 using System.Windows.Threading;
 using lector_de_libros.Models;
 using lector_de_libros.Services;
@@ -14,6 +15,11 @@ namespace lector_de_libros
 {
     public partial class MainWindow : Window
     {
+        // WPF's Language property defaults to en-US, which makes NVDA read the text with an
+        // English voice regardless of the book's actual language unless it's set explicitly.
+        // Spanish is the fallback for books that don't carry language metadata (most PDFs).
+        private const string FallbackLanguageTag = "es-ES";
+
         private readonly MainViewModel _viewModel = new();
 
         public MainWindow()
@@ -66,8 +72,29 @@ namespace lector_de_libros
                 return;
             }
 
+            UpdateReaderLanguage();
             int startOffset = _viewModel.ReadingPositionStore.GetPosition(filePath) ?? 0;
             NavigateToOffset(startOffset);
+        }
+
+        /// <summary>
+        /// Tags the reader with the book's language so NVDA's automatic language switching (when
+        /// enabled) speaks it with the right voice instead of defaulting to English.
+        /// </summary>
+        private void UpdateReaderLanguage()
+        {
+            string languageTag = _viewModel.CurrentBook?.Language ?? FallbackLanguageTag;
+            try
+            {
+                XmlLanguage language = XmlLanguage.GetLanguage(languageTag);
+                _ = language.GetEquivalentCulture();
+                ReaderTextBox.Language = language;
+            }
+            catch (InvalidOperationException)
+            {
+                // Malformed or unrecognized language tag from the book's metadata.
+                ReaderTextBox.Language = XmlLanguage.GetLanguage(FallbackLanguageTag);
+            }
         }
 
         private void CloseCommandBinding_CanExecute(object sender, CanExecuteRoutedEventArgs e)
@@ -79,6 +106,7 @@ namespace lector_de_libros
         {
             SaveCurrentPosition();
             _viewModel.CloseBook();
+            UpdateReaderLanguage();
             CommandManager.InvalidateRequerySuggested();
             AnnounceToScreenReader("Libro cerrado");
         }

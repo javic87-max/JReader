@@ -5,6 +5,7 @@ using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 using UglyToad.PdfPig.Outline;
+using UglyToad.PdfPig.Tokens;
 
 namespace lector_de_libros.Services;
 
@@ -47,8 +48,23 @@ public sealed class PdfBookLoader : IBookLoader
             ? Path.GetFileNameWithoutExtension(filePath)
             : info.Title;
         string? author = string.IsNullOrWhiteSpace(info.Author) ? null : info.Author;
+        string? language = TryGetLanguage(pdfDocument);
 
-        return new LoadedBook(filePath, title, author, text.ToString(), toc);
+        return new LoadedBook(filePath, title, author, text.ToString(), toc, language);
+    }
+
+    /// <summary>
+    /// The document language (the catalog's /Lang entry) is optional in the PDF spec and most producers
+    /// don't set it, so this is best-effort and simply returns null when absent or malformed.
+    /// </summary>
+    private static string? TryGetLanguage(PdfDocument pdfDocument)
+    {
+        if (pdfDocument.Structure.Catalog.CatalogDictionary.TryGet(NameToken.Create("Lang"), out StringToken? langToken) &&
+            langToken is not null && !string.IsNullOrWhiteSpace(langToken.Data))
+        {
+            return langToken.Data;
+        }
+        return null;
     }
 
     private static IEnumerable<string> SplitIntoParagraphs(string pageText)

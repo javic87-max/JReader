@@ -5,4 +5,5 @@ public sealed record LoadedBook(
     string Title,
     string? Author,
     string Text,
-    IReadOnlyList<TocEntry> Toc);
+    IReadOnlyList<TocEntry> Toc,
+    string? Language = null);

@@ -28,7 +28,8 @@ public sealed class EpubBookLoader : IBookLoader
             : BuildTocEntries(book.Navigation, chapterOffsetsByFilePath);
 
         string? author = book.AuthorList.Count > 0 ? book.Author : null;
-        return new LoadedBook(filePath, book.Title, author, text.ToString(), toc);
+        string? language = book.Schema.Package.Metadata.Languages.FirstOrDefault()?.Language;
+        return new LoadedBook(filePath, book.Title, author, text.ToString(), toc, language);
     }
 
     /// <summary>
