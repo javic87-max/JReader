@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
@@ -28,11 +29,11 @@ namespace lector_de_libros
             DataContext = _viewModel;
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             if (_viewModel.ReopenLastBookOnStartup && _viewModel.GetLastOpenedFilePath() is { } lastFilePath)
             {
-                LoadBook(lastFilePath);
+                await LoadBookAsync(lastFilePath);
             }
         }
 
@@ -48,7 +49,7 @@ namespace lector_de_libros
             MessageBox.Show(this, $"Has leído el {percent:F0}% del libro.", "Progreso de lectura", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void OpenCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        private async void OpenCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
             OpenFileDialog dialog = new()
             {
@@ -57,17 +58,33 @@ namespace lector_de_libros
             };
             if (dialog.ShowDialog(this) == true)
             {
-                LoadBook(dialog.FileName);
+                await LoadBookAsync(dialog.FileName);
             }
         }
 
-        private void LoadBook(string filePath)
+        /// <summary>
+        /// Parsing (especially a long PDF) can take a while, so this stays off the UI thread and
+        /// shows a wait cursor instead of blocking the window - a frozen window otherwise looks
+        /// crashed even though it's just slow.
+        /// </summary>
+        private async Task LoadBookAsync(string filePath)
         {
             SaveCurrentPosition();
 
-            if (!_viewModel.TryLoadBook(filePath, out string? errorMessage))
+            Mouse.OverrideCursor = Cursors.Wait;
+            (bool success, string? errorMessage) result;
+            try
             {
-                MessageBox.Show(this, errorMessage, "No se pudo abrir el libro", MessageBoxButton.OK, MessageBoxImage.Error);
+                result = await _viewModel.TryLoadBookAsync(filePath);
+            }
+            finally
+            {
+                Mouse.OverrideCursor = null;
+            }
+
+            if (!result.success)
+            {
+                MessageBox.Show(this, result.errorMessage, "No se pudo abrir el libro", MessageBoxButton.OK, MessageBoxImage.Error);
                 _viewModel.RemoveRecentFile(filePath);
                 return;
             }
@@ -90,9 +107,12 @@ namespace lector_de_libros
                 _ = language.GetEquivalentCulture();
                 ReaderTextBox.Language = language;
             }
-            catch (InvalidOperationException)
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
             {
-                // Malformed or unrecognized language tag from the book's metadata.
+                // Malformed or unrecognized language tag from the book's metadata (e.g. some PDF
+                // producers - often docx-to-pdf converters - write POSIX-style tags like "es_419"
+                // instead of the IETF-required "es-419", which XmlLanguage.GetLanguage rejects with
+                // an ArgumentException rather than InvalidOperationException).
                 ReaderTextBox.Language = XmlLanguage.GetLanguage(FallbackLanguageTag);
             }
         }
@@ -126,20 +146,20 @@ namespace lector_de_libros
                 nameof(AnnounceToScreenReader));
         }
 
-        private void RecentFileMenuItem_Click(object sender, RoutedEventArgs e)
+        private async void RecentFileMenuItem_Click(object sender, RoutedEventArgs e)
         {
             if (sender is MenuItem { Tag: RecentFile recent })
             {
-                LoadBook(recent.FilePath);
+                await LoadBookAsync(recent.FilePath);
             }
         }
 
-        private void Library_Click(object sender, RoutedEventArgs e)
+        private async void Library_Click(object sender, RoutedEventArgs e)
         {
             LibraryWindow libraryWindow = new(_viewModel) { Owner = this };
             if (libraryWindow.ShowDialog() == true && libraryWindow.BookToOpen is { } filePath)
             {
-                LoadBook(filePath);
+                await LoadBookAsync(filePath);
             }
         }
 

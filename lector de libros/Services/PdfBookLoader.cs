@@ -62,7 +62,9 @@ public sealed class PdfBookLoader : IBookLoader
         if (pdfDocument.Structure.Catalog.CatalogDictionary.TryGet(NameToken.Create("Lang"), out StringToken? langToken) &&
             langToken is not null && !string.IsNullOrWhiteSpace(langToken.Data))
         {
-            return langToken.Data;
+            // Some producers (often docx-to-pdf converters) write POSIX-style tags like "es_419"
+            // instead of the IETF BCP 47 form ("es-419") that XmlLanguage.GetLanguage requires.
+            return langToken.Data.Replace('_', '-');
         }
         return null;
     }

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using lector_de_libros.Models;
@@ -70,19 +71,21 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>
     /// Opening a file the user picked from disk is a trust boundary: any malformed EPUB/PDF can throw,
-    /// and a parse failure must never crash the app, so exceptions are caught broadly here.
+    /// and a parse failure must never crash the app, so exceptions are caught broadly here. Parsing
+    /// runs on a background thread because a long PDF can take a long time to extract text from, and
+    /// doing that on the UI thread makes the window appear frozen (and, on Windows, eventually
+    /// "not responding") for the whole time it's working.
     /// </summary>
-    public bool TryLoadBook(string filePath, out string? errorMessage)
+    public async Task<(bool Success, string? ErrorMessage)> TryLoadBookAsync(string filePath)
     {
         try
         {
-            LoadedBook book = _bookLoaderFactory.Load(filePath);
+            LoadedBook book = await Task.Run(() => _bookLoaderFactory.Load(filePath));
             CurrentBook = book;
             WindowTitle = $"{DefaultWindowTitle} — {book.Title}";
             _bookCacheStore.Save(book);
             RegisterRecent(filePath, book.Title);
-            errorMessage = null;
-            return true;
+            return (true, null);
         }
         catch (Exception ex)
         {
@@ -94,12 +97,10 @@ public partial class MainViewModel : ObservableObject
                 CurrentBook = cached;
                 WindowTitle = $"{DefaultWindowTitle} — {cached.Title} (copia sin conexión)";
                 RegisterRecent(filePath, cached.Title);
-                errorMessage = null;
-                return true;
+                return (true, null);
             }
 
-            errorMessage = $"No se pudo abrir «{Path.GetFileName(filePath)}»: {ex.Message}";
-            return false;
+            return (false, $"No se pudo abrir «{Path.GetFileName(filePath)}»: {ex.Message}");
         }
     }
 
