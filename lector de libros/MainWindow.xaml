@@ -58,6 +58,11 @@
                 <Separator/>
                 <MenuItem Header="_Progreso de lectura…" Click="ShowReadingProgress_Click"/>
             </MenuItem>
+            <MenuItem Header="A_yuda">
+                <MenuItem Header="_Buscar actualizaciones…" Click="CheckForUpdatesMenuItem_Click"/>
+                <Separator/>
+                <MenuItem Header="Buscar actualizaciones al _iniciar" IsCheckable="True" IsChecked="{Binding CheckForUpdatesOnStartup}"/>
+            </MenuItem>
         </Menu>
         <Grid>
             <Grid.ColumnDefinitions>

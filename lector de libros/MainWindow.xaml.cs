@@ -1,4 +1,7 @@
 using System.ComponentModel;
+using System.IO;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
@@ -23,6 +26,10 @@ namespace lector_de_libros
 
         private readonly MainViewModel _viewModel = new();
 
+        // Guards against the startup check and a manual "Buscar actualizaciones…" click overlapping -
+        // without this, both could independently find the same update and each pop its own dialog.
+        private bool _isCheckingForUpdates;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -34,6 +41,91 @@ namespace lector_de_libros
             if (_viewModel.ReopenLastBookOnStartup && _viewModel.GetLastOpenedFilePath() is { } lastFilePath)
             {
                 await LoadBookAsync(lastFilePath);
+            }
+
+            if (_viewModel.CheckForUpdatesOnStartup)
+            {
+                _ = CheckForUpdatesAsync(silent: true);
+            }
+        }
+
+        private async void CheckForUpdatesMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            await CheckForUpdatesAsync(silent: false);
+        }
+
+        /// <summary>
+        /// Shared by the startup check and the manual menu item. In silent mode, a "no update" result
+        /// or a network failure says nothing - only an actual update found is worth interrupting the
+        /// user for, whether they asked for the check or not.
+        /// </summary>
+        private async Task CheckForUpdatesAsync(bool silent)
+        {
+            if (_isCheckingForUpdates)
+            {
+                return;
+            }
+            _isCheckingForUpdates = true;
+
+            try
+            {
+                await RunUpdateCheckAsync(silent);
+            }
+            finally
+            {
+                _isCheckingForUpdates = false;
+            }
+        }
+
+        private async Task RunUpdateCheckAsync(bool silent)
+        {
+            UpdateInfo? update;
+            try
+            {
+                update = await new UpdateChecker().CheckForUpdateAsync();
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                if (!silent)
+                {
+                    MessageBox.Show(this, $"No se pudo comprobar si hay actualizaciones: {ex.Message}", "Buscar actualizaciones", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                return;
+            }
+
+            if (update is null)
+            {
+                if (!silent)
+                {
+                    MessageBox.Show(this, "Ya tienes la última versión de J Reader.", "Buscar actualizaciones", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                return;
+            }
+
+            MessageBoxResult result = MessageBox.Show(
+                this,
+                $"Hay una nueva versión disponible: {update.TagName}\n\n{update.ReleaseNotes}\n\n¿Descargarla e instalarla ahora? Se cerrará J Reader durante la instalación.",
+                "Actualización disponible",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            SaveCurrentPosition();
+            Mouse.OverrideCursor = Cursors.Wait;
+            AnnounceToScreenReader("Descargando actualización…");
+            try
+            {
+                await new UpdateInstaller().DownloadAndApplyAsync(update);
+                // On success, UpdateInstaller shuts the app down itself once the replacement is queued.
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException)
+            {
+                Mouse.OverrideCursor = null;
+                MessageBox.Show(this, $"No se pudo instalar la actualización: {ex.Message}", "Error al actualizar", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

@@ -46,6 +46,20 @@ public sealed class AppSettingsStore
         }
     }
 
+    public bool CheckForUpdatesOnStartup
+    {
+        get => _settings.CheckForUpdatesOnStartup;
+        set
+        {
+            if (_settings.CheckForUpdatesOnStartup == value)
+            {
+                return;
+            }
+            _settings = _settings with { CheckForUpdatesOnStartup = value };
+            Save();
+        }
+    }
+
     private static AppSettings Load()
     {
         try

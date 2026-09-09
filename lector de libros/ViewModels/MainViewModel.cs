@@ -52,10 +52,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _reopenLastBookOnStartup;
 
+    [ObservableProperty]
+    private bool _checkForUpdatesOnStartup;
+
     public MainViewModel()
     {
         _reopenLastBookOnStartup = AppSettingsStore.ReopenLastBookOnStartup;
         _isTocVisible = AppSettingsStore.IsTocVisible;
+        _checkForUpdatesOnStartup = AppSettingsStore.CheckForUpdatesOnStartup;
         RefreshRecentFiles();
         RefreshLibrary();
     }
@@ -68,6 +72,9 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsTocVisibleChanged(bool value) =>
         AppSettingsStore.IsTocVisible = value;
+
+    partial void OnCheckForUpdatesOnStartupChanged(bool value) =>
+        AppSettingsStore.CheckForUpdatesOnStartup = value;
 
     /// <summary>
     /// Opening a file the user picked from disk is a trust boundary: any malformed EPUB/PDF can throw,
