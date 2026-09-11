@@ -25,7 +25,7 @@ public sealed class PdfBookLoader : IBookLoader
         {
             if (text.Length > 0)
             {
-                text.Append("\r\n\r\n");
+                text.Append("\r\n");
             }
             pageOffsetsByPageNumber[page.Number] = text.Length;
             text.Append($"— Página {page.Number} —");
@@ -33,7 +33,7 @@ public sealed class PdfBookLoader : IBookLoader
             string pageText = ContentOrderTextExtractor.GetText(page);
             foreach (string paragraphText in SplitIntoParagraphs(pageText))
             {
-                text.Append("\r\n\r\n").Append(paragraphText);
+                text.Append("\r\n").Append(paragraphText);
             }
         }
 

@@ -87,7 +87,7 @@ public static class HtmlToPlainTextConverter
         }
         if (text.Length > 0)
         {
-            text.Append("\r\n\r\n");
+            text.Append("\r\n");
         }
         text.Append(paragraphText);
     }
