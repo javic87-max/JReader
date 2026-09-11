@@ -11,7 +11,7 @@
     <AssemblyTitle>J Reader</AssemblyTitle>
     <Product>J Reader</Product>
     <Description>Lector de libros accesible para EPUB y PDF, pensado para lectores de pantalla como NVDA.</Description>
-    <Version>0.1.3</Version>
+    <Version>0.1.4</Version>
   </PropertyGroup>
 
   <ItemGroup>
