@@ -14,6 +14,9 @@
     </Window.Resources>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Open" Executed="OpenCommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Find" Executed="FindCommandBinding_Executed" CanExecute="BookOpen_CanExecute"/>
+        <CommandBinding Command="{x:Static local:MainWindow.FindNextCommand}" Executed="FindNextCommandBinding_Executed" CanExecute="BookOpen_CanExecute"/>
+        <CommandBinding Command="{x:Static local:MainWindow.FindPreviousCommand}" Executed="FindPreviousCommandBinding_Executed" CanExecute="BookOpen_CanExecute"/>
         <CommandBinding Command="ApplicationCommands.Close" Executed="CloseCommandBinding_Executed" CanExecute="CloseCommandBinding_CanExecute"/>
     </Window.CommandBindings>
     <Window.InputBindings>
@@ -23,6 +26,9 @@
         <KeyBinding Key="Add" Modifiers="Control" Command="{Binding IncreaseFontSizeCommand}"/>
         <KeyBinding Key="OemMinus" Modifiers="Control" Command="{Binding DecreaseFontSizeCommand}"/>
         <KeyBinding Key="Subtract" Modifiers="Control" Command="{Binding DecreaseFontSizeCommand}"/>
+        <KeyBinding Key="F" Modifiers="Control" Command="ApplicationCommands.Find"/>
+        <KeyBinding Key="F3" Command="{x:Static local:MainWindow.FindNextCommand}"/>
+        <KeyBinding Key="F3" Modifiers="Shift" Command="{x:Static local:MainWindow.FindPreviousCommand}"/>
         <KeyBinding Key="B" Modifiers="Control" Command="{Binding ToggleTocCommand}"/>
     </Window.InputBindings>
     <DockPanel>
@@ -49,6 +55,11 @@
                 <MenuItem Header="_Cerrar libro" Command="ApplicationCommands.Close" InputGestureText="Ctrl+W"/>
                 <Separator/>
                 <MenuItem Header="Abrir último libro al _iniciar" IsCheckable="True" IsChecked="{Binding ReopenLastBookOnStartup}"/>
+            </MenuItem>
+            <MenuItem Header="_Buscar">
+                <MenuItem Header="_Buscar en el libro…" Command="ApplicationCommands.Find" InputGestureText="Ctrl+F"/>
+                <MenuItem Header="Buscar _siguiente" Command="{x:Static local:MainWindow.FindNextCommand}" InputGestureText="F3"/>
+                <MenuItem Header="Buscar _anterior" Command="{x:Static local:MainWindow.FindPreviousCommand}" InputGestureText="Mayús+F3"/>
             </MenuItem>
             <MenuItem Header="_Ver">
                 <MenuItem Header="_Aumentar tamaño de letra" Command="{Binding IncreaseFontSizeCommand}" InputGestureText="Ctrl++"/>

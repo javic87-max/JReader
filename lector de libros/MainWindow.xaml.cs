@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
@@ -24,7 +25,15 @@ namespace lector_de_libros
         // Spanish is the fallback for books that don't carry language metadata (most PDFs).
         private const string FallbackLanguageTag = "es-ES";
 
+        public static readonly RoutedUICommand FindNextCommand = new("Buscar siguiente", nameof(FindNextCommand), typeof(MainWindow));
+        public static readonly RoutedUICommand FindPreviousCommand = new("Buscar anterior", nameof(FindPreviousCommand), typeof(MainWindow));
+
         private readonly MainViewModel _viewModel = new();
+
+        private string _lastSearchText = string.Empty;
+        // Start of the last match found; lets repeated searches step past it instead of
+        // finding the same one again.
+        private int _lastMatchIndex = -1;
 
         // Guards against the startup check and a manual "Buscar actualizaciones…" click overlapping -
         // without this, both could independently find the same update and each pop its own dialog.
@@ -206,6 +215,96 @@ namespace lector_de_libros
                 // instead of the IETF-required "es-419", which XmlLanguage.GetLanguage rejects with
                 // an ArgumentException rather than InvalidOperationException).
                 ReaderTextBox.Language = XmlLanguage.GetLanguage(FallbackLanguageTag);
+            }
+        }
+
+        private void BookOpen_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = _viewModel.CurrentBook is not null;
+        }
+
+        private void FindCommandBinding_Executed(object sender, ExecutedRoutedEventArgs? e)
+        {
+            SearchWindow dialog = new(_lastSearchText) { Owner = this };
+            if (dialog.ShowDialog() != true)
+            {
+                ReaderTextBox.Focus();
+                return;
+            }
+
+            _lastSearchText = dialog.SearchText;
+            // A new query starts from the caret, so a match right at the caret counts.
+            _lastMatchIndex = -1;
+            Search(forward: true);
+        }
+
+        private void FindNextCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e) => SearchAgain(forward: true);
+
+        private void FindPreviousCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e) => SearchAgain(forward: false);
+
+        private void SearchAgain(bool forward)
+        {
+            if (_lastSearchText.Length == 0)
+            {
+                FindCommandBinding_Executed(this, null);
+                return;
+            }
+            Search(forward);
+        }
+
+        /// <summary>
+        /// Case- and accent-insensitive (Spanish readers rarely type tildes when searching), wrapping
+        /// around at the ends of the book. The match is selected so both sighted users and NVDA get
+        /// clear feedback about where it landed.
+        /// </summary>
+        private void Search(bool forward)
+        {
+            string text = ReaderTextBox.Text;
+            const CompareOptions options = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
+            CompareInfo compare = CultureInfo.InvariantCulture.CompareInfo;
+
+            // If the selection still sits on the last match, step past it; otherwise the user has
+            // moved on and the search continues from wherever the caret is now.
+            bool onLastMatch = ReaderTextBox.SelectionLength > 0 && ReaderTextBox.SelectionStart == _lastMatchIndex;
+            int start = ReaderTextBox.SelectionStart;
+
+            int index;
+            bool wrapped = false;
+            if (forward)
+            {
+                int from = onLastMatch ? start + 1 : start;
+                index = from <= text.Length ? compare.IndexOf(text, _lastSearchText, from, options) : -1;
+                if (index < 0)
+                {
+                    index = compare.IndexOf(text, _lastSearchText, 0, options);
+                    wrapped = index >= 0;
+                }
+            }
+            else
+            {
+                int from = start - 1;
+                index = from >= 0 ? compare.LastIndexOf(text, _lastSearchText, from, from + 1, options) : -1;
+                if (index < 0 && text.Length > 0)
+                {
+                    index = compare.LastIndexOf(text, _lastSearchText, text.Length - 1, text.Length, options);
+                    wrapped = index >= 0;
+                }
+            }
+
+            if (index < 0)
+            {
+                MessageBox.Show(this, $"No se encontró «{_lastSearchText}».", "Buscar", MessageBoxButton.OK, MessageBoxImage.Information);
+                ReaderTextBox.Focus();
+                return;
+            }
+
+            _lastMatchIndex = index;
+            ReaderTextBox.Focus();
+            ReaderTextBox.Select(index, _lastSearchText.Length);
+            ReaderTextBox.ScrollToLine(ReaderTextBox.GetLineIndexFromCharacterIndex(index));
+            if (wrapped)
+            {
+                AnnounceToScreenReader(forward ? "Búsqueda reiniciada desde el principio del libro" : "Búsqueda reiniciada desde el final del libro");
             }
         }
 
